@@ -11,6 +11,33 @@ class UserSerializer(serializers.ModelSerializer):
         fields = ["id", "username", "email"]
 
 
+class PasswordChangeSerializer(serializers.Serializer):
+    """Troca de senha do usuário logado: exige a senha atual correta."""
+
+    old_password = serializers.CharField(
+        write_only=True, style={"input_type": "password"}
+    )
+    new_password = serializers.CharField(
+        write_only=True, style={"input_type": "password"}
+    )
+
+    def validate_old_password(self, value):
+        if not self.context["request"].user.check_password(value):
+            raise serializers.ValidationError("Senha atual incorreta.")
+        return value
+
+    def validate_new_password(self, value):
+        # Passa o usuário para os validadores (ex.: similaridade com username)
+        validate_password(value, self.context["request"].user)
+        return value
+
+    def save(self, **kwargs):
+        user = self.context["request"].user
+        user.set_password(self.validated_data["new_password"])
+        user.save(update_fields=["password"])
+        return user
+
+
 class RegisterSerializer(serializers.ModelSerializer):
     """Cria a conta do usuário validando força da senha e e-mail único."""
 

@@ -86,6 +86,57 @@ class MeTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
 
 
+class PasswordChangeTests(APITestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            "wendel", email="wendel@example.com", password="senha-forte-123"
+        )
+        self.token = Token.objects.create(user=self.user)
+        self.client.credentials(HTTP_AUTHORIZATION=f"Token {self.token.key}")
+
+    def test_troca_de_senha_com_sucesso(self):
+        response = self.client.post(
+            reverse("password-change"),
+            {"old_password": "senha-forte-123", "new_password": "outra-senha-456"},
+        )
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.check_password("outra-senha-456"))
+        self.assertFalse(self.user.check_password("senha-forte-123"))
+
+    def test_token_continua_valido_apos_a_troca(self):
+        self.client.post(
+            reverse("password-change"),
+            {"old_password": "senha-forte-123", "new_password": "outra-senha-456"},
+        )
+        response = self.client.get(reverse("me"))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_rejeita_senha_atual_errada(self):
+        response = self.client.post(
+            reverse("password-change"),
+            {"old_password": "senha-errada", "new_password": "outra-senha-456"},
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.check_password("senha-forte-123"))
+
+    def test_rejeita_senha_nova_fraca(self):
+        response = self.client.post(
+            reverse("password-change"),
+            {"old_password": "senha-forte-123", "new_password": "123"},
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_exige_autenticacao(self):
+        self.client.credentials()
+        response = self.client.post(
+            reverse("password-change"),
+            {"old_password": "senha-forte-123", "new_password": "outra-senha-456"},
+        )
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+
 class LogoutTests(APITestCase):
     def setUp(self):
         self.user = User.objects.create_user(

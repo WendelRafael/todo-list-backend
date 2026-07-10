@@ -5,7 +5,26 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .serializers import RegisterSerializer, UserSerializer
+from .serializers import (
+    PasswordChangeSerializer,
+    RegisterSerializer,
+    UserSerializer,
+)
+
+
+class PasswordChangeView(APIView):
+    """POST /api/auth/password/ — altera a senha do usuário autenticado.
+
+    O token atual continua válido: a sessão do app não cai após a troca.
+    """
+
+    def post(self, request):
+        serializer = PasswordChangeSerializer(
+            data=request.data, context={"request": request}
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class MeView(generics.RetrieveAPIView):
