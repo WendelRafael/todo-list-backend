@@ -1,7 +1,7 @@
 # 🤖 Agents — Pipeline de Revisão Obrigatória
 
 Este arquivo define o **processo de validação de toda demanda finalizada** neste projeto.
-Nenhuma alteração de código é considerada concluída sem passar pelos três agentes abaixo.
+Nenhuma alteração de código é considerada concluída sem passar pelos quatro agentes abaixo.
 
 ---
 
@@ -15,11 +15,12 @@ Nenhuma alteração de código é considerada concluída sem passar pelos três 
           ▼
 ┌─────────────────────────────────────────┐
 │  As alterações são apresentadas aos     │
-│  3 agentes, nesta ordem:                │
+│  4 agentes, nesta ordem:                │
 │                                         │
 │  1️⃣ agent-security                      │
 │  2️⃣ agent-qualidade                     │
-│  3️⃣ agent-teste-real  (principal)       │
+│  3️⃣ agent-cobertura                     │
+│  4️⃣ agent-teste-real  (principal)       │
 └─────────┬───────────────────────────────┘
           ▼
    Todos aprovaram? ──── SIM ──▶ ✅ Alteração PASSA (demanda encerrada)
@@ -38,7 +39,7 @@ Nenhuma alteração de código é considerada concluída sem passar pelos três 
 
 ### Regras do loop
 
-1. **Unanimidade obrigatória** — a alteração só passa se os **três** agentes aprovarem.
+1. **Unanimidade obrigatória** — a alteração só passa se os **quatro** agentes aprovarem.
 2. **Uma negação basta** — se qualquer agente reprovar, o código é refeito e o ciclo **recomeça do agente 1** (uma correção pode introduzir problema novo em área já aprovada).
 3. **Reprovação sempre vem com motivo** — o agente que nega deve listar, ponto a ponto, o que precisa ser corrigido. Reprovar sem justificativa não é permitido.
 4. **A correção ataca só os motivos listados** — não se reescreve o que já foi aprovado sem necessidade.
@@ -103,7 +104,31 @@ MOTIVOS (se reprovado):
 
 ---
 
-## 3️⃣ agent-teste-real 🎯 (agente PRINCIPAL)
+## 3️⃣ agent-cobertura 🧪
+
+**Papel:** guardião da cobertura de testes das ações do usuário.
+
+### O que ele valida em toda alteração
+
+- **Ação nova = teste novo** — sempre que a demanda CRIA uma ação do usuário (botão, gesto, campo, fluxo de tela ou endpoint acionado pelo usuário), deve existir um teste na pasta `test/` que exercite essa ação.
+- **Ação alterada = teste atualizado** — sempre que a demanda ALTERA o comportamento de uma ação existente, o teste correspondente deve ser atualizado (ou criado, caso ainda não exista).
+- **Teste de verdade** — o teste executa a ação e verifica o efeito esperado; teste que só monta a tela (ou só chama o endpoint) sem verificar o resultado não conta.
+- **Lugar certo** — todo teste vive na pasta `test/` do repositório, seguindo o padrão do projeto.
+
+### Quando ele NEGA
+
+> Se qualquer ação do usuário criada ou alterada na demanda estiver **sem teste correspondente** na pasta `test/`, o veredito é ❌ REPROVADO, listando ação por ação o que ficou descoberto.
+
+### Exemplos de reprovação automática
+
+- Botão, gesto ou endpoint novo sem teste que dispare a ação e verifique o resultado.
+- Mudança no comportamento de uma ação sem atualizar o teste que a cobria.
+- Teste criado fora da pasta `test/`.
+- Teste que não exercita a ação (renderiza e não interage, ou não faz asserção).
+
+---
+
+## 4️⃣ agent-teste-real 🎯 (agente PRINCIPAL)
 
 **Papel:** o veredito final. Simula o uso real do aplicativo e decide se a alteração **quebraria a produção**.
 
@@ -142,6 +167,7 @@ O cenário deve rodar contra o código **como ele ficará em produção** (servi
 |---|---|---|
 | 🔐 `agent-security` | Endpoints, injeção, roubo de dados, infraestrutura | A alteração abre brecha de segurança ou afeta a infraestrutura |
 | 🧹 `agent-qualidade` | Consistência, qualidade, robustez lógica | Há risco de quebra de lógica ou falha do sistema |
+| 🧪 `agent-cobertura` | Toda ação do usuário tem teste na pasta `test/` | Há ação de usuário criada/alterada sem teste que a exercite |
 | 🎯 `agent-teste-real` | Fluxo real: criar, editar, excluir tarefas | O cenário de produção quebra em qualquer passo |
 
-**Lema do pipeline:** *nada entra no projeto sem passar pelos três — e o teste real dá a palavra final.*
+**Lema do pipeline:** *nada entra no projeto sem passar pelos quatro — e o teste real dá a palavra final.*
