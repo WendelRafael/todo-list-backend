@@ -67,6 +67,25 @@ class LoginTests(APITestCase):
         self.assertNotIn("token", response.data)
 
 
+class MeTests(APITestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            "wendel", email="wendel@example.com", password="senha-forte-123"
+        )
+        self.token = Token.objects.create(user=self.user)
+
+    def test_me_retorna_nome_e_email_do_usuario_logado(self):
+        self.client.credentials(HTTP_AUTHORIZATION=f"Token {self.token.key}")
+        response = self.client.get(reverse("me"))
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["username"], "wendel")
+        self.assertEqual(response.data["email"], "wendel@example.com")
+
+    def test_me_exige_autenticacao(self):
+        response = self.client.get(reverse("me"))
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+
 class LogoutTests(APITestCase):
     def setUp(self):
         self.user = User.objects.create_user(

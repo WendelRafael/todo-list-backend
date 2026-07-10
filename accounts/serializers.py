@@ -3,6 +3,14 @@ from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
 
 
+class UserSerializer(serializers.ModelSerializer):
+    """Dados públicos do próprio usuário (GET /api/auth/me/)."""
+
+    class Meta:
+        model = User
+        fields = ["id", "username", "email"]
+
+
 class RegisterSerializer(serializers.ModelSerializer):
     """Cria a conta do usuário validando força da senha e e-mail único."""
 
