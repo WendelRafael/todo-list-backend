@@ -35,7 +35,7 @@ python manage.py migrate
 python manage.py createsuperuser
 
 # 7. Subir o servidor
-python manage.py runserver
+python manage.py runserver 0.0.0.0:8000
 ```
 
 A API fica em `http://127.0.0.1:8000/api/` e a documentação interativa (Swagger)
