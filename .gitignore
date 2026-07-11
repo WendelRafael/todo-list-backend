@@ -8,3 +8,6 @@ db.sqlite3
 # Editor / SO
 .vscode/
 Thumbs.db
+
+# Claude Code (arquivo local de desenvolvimento, nao versionar)
+CLAUDE.md
