@@ -1,8 +1,12 @@
 """
 Django settings for config project.
 
-Configuração do backend do To-Do List (API REST local).
-Banco de dados: SQLite (arquivo local db.sqlite3 — aplicação roda apenas local).
+Configuração do backend do To-Do List (API REST).
+Banco de dados: SQLite (arquivo local db.sqlite3).
+
+Local × produção: quem decide é o .env (SECRET_KEY, DEBUG, ALLOWED_HOSTS).
+Para voltar ao uso local, basta o .env local original (DEBUG=True) — os
+fallbacks abaixo continuam os mesmos do desenvolvimento.
 """
 
 import os
@@ -124,6 +128,15 @@ REST_FRAMEWORK = {
         "rest_framework.filters.OrderingFilter",
     ],
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+    # Limites de requisição das rotas públicas (accounts/views.py usa estes
+    # escopos) — proteção contra força bruta no login e criação de contas em
+    # massa no registro quando a API estiver publicada na internet.
+    # Em uso local (DEBUG=True) os limites ficam DESLIGADOS (None): o
+    # comportamento de desenvolvimento segue igual ao de antes do deploy.
+    "DEFAULT_THROTTLE_RATES": {
+        "login": None if DEBUG else "10/min",
+        "register": None if DEBUG else "20/hour",
+    },
 }
 
 SPECTACULAR_SETTINGS = {
@@ -155,6 +168,17 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
 STATIC_URL = "static/"
+
+# Pasta onde `collectstatic` reúne os estáticos (admin e Swagger) para o
+# servidor de produção servir. Em uso local o runserver serve os estáticos
+# sozinho e ignora esta pasta — nada muda no desenvolvimento.
+STATIC_ROOT = BASE_DIR / "staticfiles"
+
+# --- Produção (HTTPS atrás de proxy) ---------------------------------------
+# Descomente ao publicar (ex.: PythonAnywhere/Render), ajustando o domínio.
+# Em uso local, mantenha comentado — HTTP simples continua funcionando.
+# SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+# CSRF_TRUSTED_ORIGINS = ["https://seuusuario.pythonanywhere.com"]
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field

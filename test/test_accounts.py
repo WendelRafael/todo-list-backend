@@ -1,10 +1,13 @@
 """Testes das ações de conta: registro, login, perfil, troca de senha e logout."""
 
 from django.contrib.auth.models import User
+from django.core.cache import cache
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.authtoken.models import Token
 from rest_framework.test import APITestCase
+
+from accounts.views import LoginRateThrottle, RegisterRateThrottle
 
 
 class RegisterTests(APITestCase):
@@ -192,3 +195,69 @@ class LogoutTests(APITestCase):
         """Logout sem token responde 401 (não há sessão para encerrar)."""
         response = self.client.post(reverse("logout"))
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+
+class LoginThrottleTests(APITestCase):
+    """POST /api/auth/login/ — limite de tentativas por IP (anti força bruta)."""
+
+    def setUp(self):
+        User.objects.create_user(
+            "wendel", email="wendel@example.com", password="senha-forte-123"
+        )
+        # Em dev (DEBUG=True) o limite fica desligado no settings; o teste
+        # força uma taxa baixa para exercitar o comportamento de produção.
+        LoginRateThrottle.THROTTLE_RATES = {"login": "3/min"}
+        cache.clear()  # zera contagens de requisições de outros testes
+
+    def tearDown(self):
+        del LoginRateThrottle.THROTTLE_RATES  # volta à taxa do settings
+        cache.clear()
+
+    def test_bloqueia_tentativas_alem_do_limite(self):
+        """Estourado o limite, até a senha correta responde 429 — força
+        bruta não consegue continuar tentando senhas."""
+        for _ in range(3):
+            response = self.client.post(
+                reverse("login"), {"username": "wendel", "password": "senha-errada"}
+            )
+            self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        response = self.client.post(
+            reverse("login"), {"username": "wendel", "password": "senha-forte-123"}
+        )
+        self.assertEqual(response.status_code, status.HTTP_429_TOO_MANY_REQUESTS)
+
+
+class RegisterThrottleTests(APITestCase):
+    """POST /api/auth/register/ — limite de criação de contas por IP."""
+
+    def setUp(self):
+        RegisterRateThrottle.THROTTLE_RATES = {"register": "2/hour"}
+        cache.clear()
+
+    def tearDown(self):
+        del RegisterRateThrottle.THROTTLE_RATES
+        cache.clear()
+
+    def test_bloqueia_criacao_de_contas_em_massa(self):
+        """Estourado o limite, o registro seguinte responde 429 e nenhuma
+        conta extra aparece no banco."""
+        for i in range(2):
+            response = self.client.post(
+                reverse("register"),
+                {
+                    "username": f"usuario{i}",
+                    "email": f"usuario{i}@example.com",
+                    "password": "senha-forte-123",
+                },
+            )
+            self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        response = self.client.post(
+            reverse("register"),
+            {
+                "username": "usuario2",
+                "email": "usuario2@example.com",
+                "password": "senha-forte-123",
+            },
+        )
+        self.assertEqual(response.status_code, status.HTTP_429_TOO_MANY_REQUESTS)
+        self.assertEqual(User.objects.count(), 2)
